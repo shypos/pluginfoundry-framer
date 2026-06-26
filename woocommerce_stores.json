@@ -1,0 +1,24 @@
+[
+  {
+    "id": "str_1",
+    "name": "Gourmet Coffee Boutique",
+    "url": "https://gourmet-coffee.domain",
+    "consumerKey": "3adca3f93ca79914f7a92c1e6745a056:3ba75b534cd70dc88edf2fc5d1fb985e:f48218d779890b1b220a8d996c7bf5d17ee1355bbacf83efbb2f003197e824dce77fff52fadecb2a7d0b830f09751adf",
+    "consumerSecret": "5c6620b80043525ed3b28f63ad5aa520:062e40cc30a1ecebdad36a0e6797246d:79f2941b665a124bf5a16333d9568dab985dd999c08492bd9e07f274492dacb226b628455a247a7e6a07a7e8574effeb",
+    "status": "Syncing",
+    "last_sync": "2026-06-18T21:09:10.179Z",
+    "created_at": "2026-04-15T11:00:00Z",
+    "failure_count": 0
+  },
+  {
+    "id": "str_2",
+    "name": "Artisan Woodwork Shop",
+    "url": "https://artisanwood.store",
+    "consumerKey": "f81ce39dc020e3f0f11e3fc05cf75704:282ddf800120a61f46fd6cf6c9bfced2:f795ba9f1bd8245ccd17f809445305fc21739bb057eb15226a62de44cbc1035b9fca240e00091b9dd51d2b18ceb5f1a5",
+    "consumerSecret": "246f0bfd9bff6fbfb8e8d2e5c276d572:4b910484e78694dbd5c76f3ac8fe817d:00b7ab315bfbafd413f0b343fa7e4e95bce812e70c8abb12e2a36da82e25915c70abeaf3cc285477d27f4bef53e6f359",
+    "status": "Syncing",
+    "last_sync": "2026-06-18T21:09:10.276Z",
+    "created_at": "2026-05-20T08:15:00Z",
+    "failure_count": 0
+  }
+]

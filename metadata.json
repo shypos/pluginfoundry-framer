@@ -1,0 +1,6 @@
+{
+  "name": "PluginFoundry Dashboard",
+  "description": "A production-grade, multi-product SaaS dashboard hosting Forms, WooCommerce Sync, and Export modules.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
