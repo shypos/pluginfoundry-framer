@@ -21,6 +21,7 @@ export interface Store {
   last_sync: string | null;
   created_at: string;
   failure_count?: number;
+  sslBypass?: boolean;
   fieldMappings?: Record<string, string>;
   syncSettings?: { createItems: boolean; updateItems: boolean; deleteItems: boolean };
   productToCmsItemMap?: Record<string, string>;

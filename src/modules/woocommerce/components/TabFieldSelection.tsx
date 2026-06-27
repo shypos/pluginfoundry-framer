@@ -256,8 +256,24 @@ export default function TabFieldSelection({
       }
 
       // Save key states locally to support developer session cache
-      localStorage.setItem(`wc_ck_${selectedStore.id}`, wooConsumerKey.trim());
-      localStorage.setItem(`wc_cs_${selectedStore.id}`, wooConsumerSecret.trim());
+      if (!wooConsumerKey.includes('*')) {
+        localStorage.setItem(`wc_ck_${selectedStore.id}`, wooConsumerKey.trim());
+      }
+      if (!wooConsumerSecret.includes('*')) {
+        localStorage.setItem(`wc_cs_${selectedStore.id}`, wooConsumerSecret.trim());
+      }
+
+      setWooSuccessMsg("Handshaking REST signatures... Synchronizing WooCommerce catalogue...");
+
+      // Trigger WooCommerce catalog synchronization
+      const syncRes = await fetch(`/api/sync/${selectedStore.id}`, {
+        method: 'POST'
+      });
+
+      if (!syncRes.ok) {
+        const syncErrorJson = await syncRes.json().catch(() => ({}));
+        throw new Error(`REST keys enrolled, but WooCommerce sync failed: ${syncErrorJson.error || 'Server connection error'}`);
+      }
 
       // Handshake validation: pull WooCommerce catalogue to verify connection authority
       const prodResponse = await fetch(`/v1/${selectedStore.id}/products?limit=5`);
@@ -324,7 +340,9 @@ export default function TabFieldSelection({
       }
 
       localStorage.setItem(`framer_pid_${selectedStore.id}`, parsedPid);
-      localStorage.setItem(`framer_key_${selectedStore.id}`, framerKey.trim());
+      if (!framerKey.includes('*')) {
+        localStorage.setItem(`framer_key_${selectedStore.id}`, framerKey.trim());
+      }
 
       // Fetch Framer collections to dry-test actual API query capabilities
       const colRes = await fetch(`/api/framer/collections/${selectedStore.id}`);

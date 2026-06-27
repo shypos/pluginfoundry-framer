@@ -42,6 +42,7 @@ export interface ValidationResult {
   statusText: string;
   errorCode?: string;
   details?: string;
+  isSimulatedFallback?: boolean;
 }
 
 /**
@@ -50,7 +51,8 @@ export interface ValidationResult {
 export async function validateWooCommerceCredentials(
   url: string,
   consumerKey: string,
-  consumerSecret: string
+  consumerSecret: string,
+  sslBypass?: boolean
 ): Promise<ValidationResult> {
   const sanitizedUrl = url.trim().replace(/\/$/, "");
 
@@ -82,6 +84,11 @@ export async function validateWooCommerceCredentials(
     };
   }
 
+  const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+  if (sslBypass) {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  }
+
   // Real store validation: Attempt to query the products endpoint with limit 1
   try {
     const authHeader = "Basic " + Buffer.from(`${consumerKey}:${consumerSecret}`).toString("base64");
@@ -102,6 +109,14 @@ export async function validateWooCommerceCredentials(
     });
 
     clearTimeout(timeoutId);
+
+    if (sslBypass) {
+      if (originalRejectUnauthorized !== undefined) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+      } else {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      }
+    }
 
     if (res.status === 200) {
       return {
@@ -142,6 +157,14 @@ export async function validateWooCommerceCredentials(
     };
 
   } catch (err: any) {
+    if (sslBypass) {
+      if (originalRejectUnauthorized !== undefined) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+      } else {
+        delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      }
+    }
+
     if (err.name === "AbortError") {
       return {
         isValid: false,
@@ -149,6 +172,7 @@ export async function validateWooCommerceCredentials(
         errorCode: "TIMEOUT_ERROR"
       };
     }
+
     return {
       isValid: false,
       statusText: `Failed to connect with WordPress host URL. Error: ${err.message || String(err)}`,

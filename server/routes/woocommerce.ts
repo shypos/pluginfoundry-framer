@@ -106,7 +106,7 @@ woocommerceRouter.delete("/api/stores/:id", (req, res) => {
 // 4. Update Store Configuration
 woocommerceRouter.put("/api/stores/:id", async (req, res) => {
   const { id } = req.params;
-  const { name, url, consumerKey, consumerSecret, framerProjectId, framerApiKey, framerTargetCollectionId, selectedFields, profiles } = req.body;
+  const { name, url, consumerKey, consumerSecret, sslBypass, framerProjectId, framerApiKey, framerTargetCollectionId, selectedFields, profiles } = req.body;
 
   const stores = getStoresFromDb();
   const store = stores.find(s => s.id === id);
@@ -119,15 +119,23 @@ woocommerceRouter.put("/api/stores/:id", async (req, res) => {
   const decryptedCk = store.consumerKey ? decryptText(store.consumerKey) : "";
   const decryptedCs = store.consumerSecret ? decryptText(store.consumerSecret) : "";
   
-  const ckChanged = consumerKey !== undefined && consumerKey.trim() !== decryptedCk;
-  const csChanged = consumerSecret !== undefined && consumerSecret.trim() !== decryptedCs;
+  // Resolve resolved keys (filter out masked fields containing '*')
+  const resolvedCk = (consumerKey !== undefined && !consumerKey.includes('*')) ? consumerKey.trim() : decryptedCk;
+  const resolvedCs = (consumerSecret !== undefined && !consumerSecret.includes('*')) ? consumerSecret.trim() : decryptedCs;
 
-  if (consumerKey && consumerSecret && (ckChanged || csChanged)) {
+  const ckChanged = consumerKey !== undefined && !consumerKey.includes('*') && consumerKey.trim() !== decryptedCk;
+  const csChanged = consumerSecret !== undefined && !consumerSecret.includes('*') && consumerSecret.trim() !== decryptedCs;
+  const urlChanged = url !== undefined && url.trim().replace(/\/$/, "") !== store.url;
+
+  const activeSslBypass = sslBypass !== undefined ? !!sslBypass : (store.sslBypass !== undefined ? store.sslBypass : true);
+
+  if (resolvedCk && resolvedCs && (ckChanged || csChanged || urlChanged)) {
     const targetUrl = url ? url.trim() : store.url;
     const validation = await validateWooCommerceCredentials(
       targetUrl,
-      consumerKey.trim(),
-      consumerSecret.trim()
+      resolvedCk,
+      resolvedCs,
+      activeSslBypass
     );
 
     if (!validation.isValid) {
@@ -141,10 +149,20 @@ woocommerceRouter.put("/api/stores/:id", async (req, res) => {
 
   if (name) store.name = name.trim();
   if (url) store.url = url.trim().replace(/\/$/, "");
-  if (consumerKey) store.consumerKey = encryptText(consumerKey.trim());
-  if (consumerSecret) store.consumerSecret = encryptText(consumerSecret.trim());
+  if (sslBypass !== undefined) store.sslBypass = !!sslBypass;
+  
+  if (consumerKey !== undefined && !consumerKey.includes('*') && consumerKey.trim() !== '') {
+    store.consumerKey = encryptText(consumerKey.trim());
+  }
+  if (consumerSecret !== undefined && !consumerSecret.includes('*') && consumerSecret.trim() !== '') {
+    store.consumerSecret = encryptText(consumerSecret.trim());
+  }
+  
   if (framerProjectId !== undefined) store.framerProjectId = parseFramerProjectId(framerProjectId);
-  if (framerApiKey) store.framerApiKey = encryptText(parseFramerApiKey(framerApiKey));
+  
+  if (framerApiKey !== undefined && !framerApiKey.includes('*') && framerApiKey.trim() !== '') {
+    store.framerApiKey = encryptText(parseFramerApiKey(framerApiKey));
+  }
   
   if (framerTargetCollectionId !== undefined) store.framerTargetCollectionId = framerTargetCollectionId;
   if (selectedFields !== undefined) store.selectedFields = selectedFields;
@@ -216,15 +234,7 @@ woocommerceRouter.get("/api/framer/collections/:storeId", async (req, res) => {
   const framerApiKey = store.framerApiKey ? decryptText(store.framerApiKey) : "";
   const framerProjectId = store.framerProjectId || "";
 
-  const isMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !framerProjectId || framerProjectId.includes("example");
-
-  if (isMock) {
-    return res.json([
-      { id: "col_framer_products", name: "WooCommerce Products Layout", slug: "products" },
-      { id: "col_framer_catalog", name: "Shop Catalog Collection", slug: "catalog" },
-      { id: "col_framer_promo", name: "Featured Campaigns & Products", slug: "featured-products" }
-    ]);
-  }
+  const isMock = false;
 
   let client: FramerClient | null = null;
   try {
@@ -260,47 +270,7 @@ woocommerceRouter.get("/api/framer/collection-schema/:storeId/:collectionId", as
   }
 
   const framerApiKey = store.framerApiKey ? decryptText(store.framerApiKey) : "";
-  const isMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !store.framerProjectId || store.framerProjectId.includes("example");
-
-  const getMockFields = (colId: string) => {
-    if (colId === "col_framer_products" || colId.includes("product")) {
-      return [
-        { id: "name", name: "Product Title", type: "text" },
-        { id: "slug", name: "Slug Link", type: "slug" },
-        { id: "product_sku", name: "Unique Store SKU", type: "text" },
-        { id: "description", name: "Rich Body Description", type: "richText" },
-        { id: "price_usd", name: "Base Price USD", type: "number" },
-        { id: "product_image", name: "Showcase Hero Image", type: "image" },
-        { id: "category_name", name: "Main Category", type: "text" },
-        { id: "in_stock", name: "In Stock Indicator", type: "boolean" },
-        { id: "seo_meta_title", name: "SEO Meta Header", type: "text" },
-        { id: "seo_meta_desc", name: "SEO Meta Summary", type: "text" }
-      ];
-    } else if (colId === "col_framer_catalog" || colId.includes("catalog")) {
-      return [
-        { id: "title", name: "Item Title", type: "text" },
-        { id: "url_slug", name: "Website Slug", type: "slug" },
-        { id: "price", name: "Retail Price", type: "number" },
-        { id: "main_image", name: "Thumbnail Image", type: "image" },
-        { id: "item_description", name: "HTML Item Description", type: "richText" },
-        { id: "catalog_sku", name: "Catalog Sku Reference", type: "text" },
-        { id: "stock_level", name: "Stock Inventory Level", type: "number" }
-      ];
-    } else {
-      return [
-        { id: "promo_title", name: "Promo Title Header", type: "text" },
-        { id: "promo_slug", name: "SEO Permaslug", type: "slug" },
-        { id: "sale_price", name: "Discount Sale Price", type: "number" },
-        { id: "regular_price", name: "MSRP Regular Price", type: "number" },
-        { id: "promo_banner", name: "Hero Advertising Banner", type: "image" },
-        { id: "promo_text", name: "Promotional Subtext", type: "text" }
-      ];
-    }
-  };
-
-  if (isMock) {
-    return res.json({ fields: getMockFields(collectionId) });
-  }
+  const isMock = false;
 
   let client: FramerClient | null = null;
   try {
@@ -373,16 +343,7 @@ woocommerceRouter.post("/api/framer/create-collection/:storeId", async (req, res
 
   const framerApiKey = store.framerApiKey ? decryptText(store.framerApiKey) : "";
   const framerProjectId = store.framerProjectId || "";
-  const isMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !framerProjectId || framerProjectId.includes("example");
-
-  if (isMock) {
-    const mockId = `col_${Math.random().toString(36).substring(2, 11)}`;
-    const mockSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
-    const newMockColl = { id: mockId, name: name.trim(), slug: mockSlug, fieldsCount: 2 };
-    
-    // Add to store's framer collections cache mock list if necessary
-    return res.json(newMockColl);
-  }
+  const isMock = false;
 
   let client: FramerClient | null = null;
   try {
@@ -428,39 +389,10 @@ woocommerceRouter.post("/api/framer/create-fields/:storeId", async (req, res) =>
 
   const framerApiKey = store.framerApiKey ? decryptText(store.framerApiKey) : "";
   const framerProjectId = store.framerProjectId || "";
-  const isMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !framerProjectId || framerProjectId.includes("example");
+  const isMock = false;
 
   const activeMappings = store.fieldMappings || {};
   const newlyCreatedFields: { name: string; type: string }[] = [];
-
-  if (isMock) {
-    const mockMappings: Record<string, string> = { ...activeMappings };
-    selectedFields.forEach(field => {
-      if (!mockMappings[field]) {
-        if (field === "title") {
-          mockMappings[field] = "title";
-        } else if (field === "slug") {
-          mockMappings[field] = "slug";
-        } else {
-          mockMappings[field] = field;
-          const info = WOO_FIELDS_INFO[field] || { name: field, type: "string" };
-          newlyCreatedFields.push(info);
-        }
-      }
-    });
-
-    store.selectedFields = selectedFields;
-    store.fieldMappings = mockMappings;
-    store.framerTargetCollectionId = collectionId;
-    saveStoresToDb(stores);
-
-    return res.json({
-      success: true,
-      createdCount: newlyCreatedFields.length,
-      createdFields: newlyCreatedFields,
-      mappings: mockMappings
-    });
-  }
 
   let client: FramerClient | null = null;
   try {
@@ -590,7 +522,7 @@ woocommerceRouter.post("/api/framer/sync-preview/:storeId", async (req, res) => 
   }
 
   const framerApiKey = store.framerApiKey ? decryptText(store.framerApiKey) : "";
-  const isMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !store.framerProjectId || store.framerProjectId.includes("example");
+  const isMock = false;
 
   let existingItems: any[] = [];
   const activeMappings = fieldMappings || store.fieldMappings || {};
@@ -598,7 +530,7 @@ woocommerceRouter.post("/api/framer/sync-preview/:storeId", async (req, res) => 
   const itemMap = store.productToCmsItemMap || {};
 
   let client: FramerClient | null = null;
-  if (!isMock && collectionId) {
+  if (collectionId) {
     try {
       client = new FramerClient(store.framerProjectId || "", framerApiKey);
       const items = await client.getCollectionItems(collectionId);
@@ -614,12 +546,6 @@ woocommerceRouter.post("/api/framer/sync-preview/:storeId", async (req, res) => 
         await client.disconnect();
       }
     }
-  } else {
-    existingItems = products.slice(0, Math.ceil(products.length / 2)).map(p => ({
-      id: itemMap[p.id] || `item_mock_${p.id}`,
-      slug: p.slug,
-      name: p.title
-    }));
   }
 
   const existingSlugMap = new Map<string, any>();
@@ -727,7 +653,6 @@ woocommerceRouter.post("/api/framer/sync/:storeId", async (req, res) => {
   const settings = syncSettings || store.syncSettings || { createItems: true, updateItems: true, deleteItems: false };
 
   const framerApiKey = store.framerApiKey ? decryptText(store.framerApiKey) : "";
-  const isMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !store.framerProjectId || store.framerProjectId.includes("example");
 
   let createdCount = 0;
   let updatedCount = 0;
@@ -735,180 +660,12 @@ woocommerceRouter.post("/api/framer/sync/:storeId", async (req, res) => {
   let skippedCount = 0;
   const syncDetails: string[] = [];
 
-  // MOCK PIPELINE
-  if (isMock) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    const simulatedCmsItemsMap = new Map<string, string>();
-    products.slice(0, Math.ceil(products.length / 2)).forEach((p, idx) => {
-      const mockItemId = store.productToCmsItemMap?.[p.id] || `sim_item_${p.id}_${idx}`;
-      simulatedCmsItemsMap.set(p.slug, mockItemId);
-    });
-
-    for (const p of products) {
-      if (!p.title || !p.slug) {
-        skippedCount++;
-        syncDetails.push(`[SKIPPED] Product #${p.id} - Missing required title/slug properties.`);
-        continue;
-      }
-
-      const fieldData: Record<string, any> = {};
-      Object.entries(mappings).forEach(([wooKey, framerKey]) => {
-        if (enabledFields.includes(wooKey) && framerKey) {
-          const val = p[wooKey as keyof typeof p];
-          if (val !== undefined && val !== null) {
-            fieldData[framerKey as string] = val;
-          }
-        }
-      });
-
-      fieldData.slug = fieldData.slug || p.slug;
-      fieldData.name = fieldData.name || p.title;
-
-      const payloadFieldsDesc = Object.keys(fieldData).join(", ");
-      const mappedCmsItemId = store.productToCmsItemMap[p.id] || simulatedCmsItemsMap.get(p.slug);
-
-      if (mappedCmsItemId) {
-        if (settings.updateItems) {
-          updatedCount++;
-          store.productToCmsItemMap[p.id] = mappedCmsItemId;
-          syncDetails.push(`${dryRun ? '[DRY RUN] ' : ''}[UPDATED] '${p.title}' (Framer ID: ${mappedCmsItemId}). Fields payload matched: { ${payloadFieldsDesc} }`);
-        } else {
-          skippedCount++;
-          syncDetails.push(`[SKIPPED] '${p.title}' (Updates disabled in sync settings).`);
-        }
-      } else {
-        if (settings.createItems) {
-          createdCount++;
-          const newMockId = `cms_item_${Math.random().toString(36).substring(2, 9)}`;
-          if (!dryRun) {
-            store.productToCmsItemMap[p.id] = newMockId;
-          }
-          syncDetails.push(`${dryRun ? '[DRY RUN] ' : ''}[CREATED] '${p.title}' (Created Framer ID: ${newMockId}). Payload matched: { ${payloadFieldsDesc} }`);
-        } else {
-          skippedCount++;
-          syncDetails.push(`[SKIPPED] '${p.title}' (New item creation disabled in settings).`);
-        }
-      }
-    }
-
-    if (settings.deleteItems) {
-      deletedCount = 1;
-      syncDetails.push(`${dryRun ? '[DRY RUN] ' : ''}[DELETED] Removed obsolete catalog item from Framer CMS (ID: item_stale_999).`);
-    }
-
-    if (!dryRun) {
-      store.last_sync = new Date().toISOString();
-      store.status = "Connected";
-      saveStoresToDb(stores);
-    }
-
-    const logMsg = `${dryRun ? '[DRY RUN ENGINE] ' : ''}Framer sync simulation finished. Created: ${createdCount}, Updated: ${updatedCount}, Deleted: ${deletedCount}, Skipped: ${skippedCount}.`;
-    if (!dryRun) {
-      addSyncLog(storeId, "Framer CMS Sync", "success", logMsg);
-    }
-
-    return res.json({
-      success: true,
-      message: logMsg,
-      created: createdCount,
-      updated: updatedCount,
-      deleted: deletedCount,
-      skipped: skippedCount,
-      details: syncDetails,
-      dryRun: !!dryRun
-    });
-  }
-
-  // REAL SYNCHRONIZATION PIPELINE
   let client: FramerClient | null = null;
   try {
     client = new FramerClient(store.framerProjectId || "", framerApiKey);
 
     let existingCmsItems: any[] = [];
-    try {
-      existingCmsItems = await client.getCollectionItems(collectionId);
-    } catch (fetchErr: any) {
-      console.warn(`[Framer Sync Fallback] Collection ${collectionId} retrieval failed. Diverting to sandbox simulation.`, fetchErr);
-      
-      const simulatedCmsItemsMap = new Map<string, string>();
-      products.slice(0, Math.ceil(products.length / 2)).forEach((p, idx) => {
-        const mockItemId = store.productToCmsItemMap?.[p.id] || `sim_item_${p.id}_${idx}`;
-        simulatedCmsItemsMap.set(p.slug, mockItemId);
-      });
-
-      for (const p of products) {
-        if (!p.title || !p.slug) {
-          skippedCount++;
-          syncDetails.push(`[SKIPPED] Product #${p.id} - Missing required title/slug properties.`);
-          continue;
-        }
-
-        const fieldData: Record<string, any> = {};
-        Object.entries(mappings).forEach(([wooKey, framerKey]) => {
-          if (enabledFields.includes(wooKey) && framerKey) {
-            const val = p[wooKey as keyof typeof p];
-            if (val !== undefined && val !== null) {
-              fieldData[framerKey as string] = val;
-            }
-          }
-        });
-
-        const payloadFieldsDesc = Object.keys(fieldData).join(", ");
-        const mappedCmsItemId = store.productToCmsItemMap[p.id] || simulatedCmsItemsMap.get(p.slug);
-
-        if (mappedCmsItemId) {
-          if (settings.updateItems) {
-            updatedCount++;
-            store.productToCmsItemMap[p.id] = mappedCmsItemId;
-            syncDetails.push(`[SIMULATED UPDATE] '${p.title}' (ID: ${mappedCmsItemId}). Fields: { ${payloadFieldsDesc} }`);
-          } else {
-            skippedCount++;
-            syncDetails.push(`[SKIPPED] '${p.title}' (Updates disabled).`);
-          }
-        } else {
-          if (settings.createItems) {
-            createdCount++;
-            const newMockId = `cms_item_${Math.random().toString(36).substring(2, 9)}`;
-            if (!dryRun) {
-              store.productToCmsItemMap[p.id] = newMockId;
-            }
-            syncDetails.push(`[SIMULATED CREATE] '${p.title}' (Created. ID: ${newMockId}). Fields: { ${payloadFieldsDesc} }`);
-          } else {
-            skippedCount++;
-            syncDetails.push(`[SKIPPED] '${p.title}' (Creation disabled).`);
-          }
-        }
-      }
-
-      if (settings.deleteItems) {
-        deletedCount = 1;
-        syncDetails.push(`[SIMULATED DELETED] Removed obsolete catalog item from Framer CMS.`);
-      }
-
-      if (!dryRun) {
-        store.last_sync = new Date().toISOString();
-        store.status = "Connected";
-        saveStoresToDb(stores);
-      }
-
-      const logMsg = `Framer API failed. Diverted safely to sandbox simulation sync. Created: ${createdCount}, Updated: ${updatedCount}, Deleted: ${deletedCount}, Skipped: ${skippedCount}.`;
-      if (!dryRun) {
-        addSyncLog(storeId, "Framer CMS Sync", "success", logMsg);
-      }
-
-      return res.json({
-        success: true,
-        message: logMsg,
-        created: createdCount,
-        updated: updatedCount,
-        deleted: deletedCount,
-        skipped: skippedCount,
-        details: syncDetails,
-        dryRun: !!dryRun,
-        isSimulatedFallback: true
-      });
-    }
+    existingCmsItems = await client.getCollectionItems(collectionId);
 
     const existingSlugMap = new Map<string, any>();
     existingCmsItems.forEach(item => {

@@ -60,7 +60,7 @@ export default function TabProducts({ products, handleDeleteProduct }: TabProduc
                     <TableCell className="py-3 col-name">
                       <div className="flex flex-col text-left">
                         <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{p.name}</span>
-                        <span className="text-[10px] font-mono text-muted-foreground">{p.sku || 'SKU_GEN_MOCK'}</span>
+                        <span className="text-[10px] font-mono text-muted-foreground">{p.sku || 'NO-SKU'}</span>
                       </div>
                     </TableCell>
                     <TableCell className="py-3 col-price text-xs text-left">
