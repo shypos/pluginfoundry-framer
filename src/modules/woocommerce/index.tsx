@@ -118,16 +118,7 @@ export default function WooCommerceCatalyst() {
         }
         console.warn("Could not retrieve collections directory:", errMsg);
         setFramerErrorMsg(errMsg);
-        const usingMock = !framerApiKey || framerApiKey.startsWith("framer_cms_mock") || framerApiKey.includes("mock") || !framerProjectId || framerProjectId.includes("example");
-        if (usingMock) {
-          setFramerCollections([
-            { id: "col_framer_products", name: "WooCommerce Products Layout", slug: "products" },
-            { id: "col_framer_catalog", name: "Shop Catalog Collection", slug: "catalog" },
-            { id: "col_framer_promo", name: "Featured Campaigns & Products", slug: "featured-products" }
-          ]);
-        } else {
-          setFramerCollections([]);
-        }
+        setFramerCollections([]);
       }
     } catch (err: any) {
       console.error("[Framer Loader Client Error]", err);
@@ -319,15 +310,15 @@ export default function WooCommerceCatalyst() {
           if (response.ok && contentType.includes("application/json")) {
             const resJson = await response.json();
             currentProds = resJson.products.map((p: any) => ({
-              id: p.id,
-              name: p.title,
-              sku: p.slug.toUpperCase(),
-              regular_price: String(p.price),
-              sale_price: "",
-              stock_quantity: p.inStock ? 50 : 0,
-              status: p.inStock ? 'publish' : 'draft',
+              id: String(p.id),
+              name: p.title || p.name || "",
+              sku: p.sku || (p.slug ? p.slug.toUpperCase() : "NO-SKU"),
+              regular_price: String(p.regular_price !== undefined ? p.regular_price : (p.price || "0")),
+              sale_price: p.sale_price !== null && p.sale_price !== undefined ? String(p.sale_price) : "",
+              stock_quantity: p.stock_quantity !== undefined ? Number(p.stock_quantity) : 45,
+              status: p.status === 'publish' || p.status === 'draft' ? p.status : 'publish',
               categories: p.categories || 'General',
-              description: p.description
+              description: p.description || ""
             }));
           }
         } catch (e) {
@@ -717,15 +708,15 @@ export default function WooCommerceCatalyst() {
         if (prodResponse.ok && prodContentType.includes("application/json")) {
           const productsJson = await prodResponse.json();
           const mappedProds = productsJson.products.map((p: any) => ({
-            id: p.id,
-            name: p.title,
-            sku: p.slug.toUpperCase(),
-            regular_price: String(p.price),
-            sale_price: "",
-            stock_quantity: p.inStock ? 50 : 0,
-            status: p.inStock ? 'publish' : 'draft',
+            id: String(p.id),
+            name: p.title || p.name || "",
+            sku: p.sku || (p.slug ? p.slug.toUpperCase() : "NO-SKU"),
+            regular_price: String(p.regular_price !== undefined ? p.regular_price : (p.price || "0")),
+            sale_price: p.sale_price !== null && p.sale_price !== undefined ? String(p.sale_price) : "",
+            stock_quantity: p.stock_quantity !== undefined ? Number(p.stock_quantity) : 45,
+            status: p.status === 'publish' || p.status === 'draft' ? p.status : 'publish',
             categories: p.categories || 'General',
-            description: p.description
+            description: p.description || ""
           }));
           setProducts(mappedProds);
         }

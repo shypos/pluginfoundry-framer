@@ -222,7 +222,7 @@ export async function triggerSyncEngine(storeId: string, eventType: string = "Sc
     let finalProducts: any[] = [];
     let finalCategories: NormalizedCategory[] = [];
 
-    const isMock = store.url.includes(".domain") || store.url.includes("mock") || store.url === "https://artisanwood.store" || (!rawConsumerKey.startsWith("ck_") && !rawConsumerSecret.startsWith("cs_"));
+    const isMock = false;
 
     if (isMock) {
       await new Promise(resolve => setTimeout(resolve, 600));
@@ -260,42 +260,59 @@ export async function triggerSyncEngine(storeId: string, eventType: string = "Sc
         ];
       }
     } else {
-      const authHeader = "Basic " + Buffer.from(`${rawConsumerKey}:${rawConsumerSecret}`).toString("base64");
-      
-      const fetchWithRetry = async (targetUrl: string, attemptsLeft: number = 3, delay: number = 1000): Promise<any> => {
-        try {
-          const res = await fetch(targetUrl, {
-            headers: {
-              "Authorization": authHeader,
-              "Content-Type": "application/json"
-            }
-          });
-          if (!res.ok) throw new Error(`HTTP Error Status: ${res.status}`);
-          return await res.json();
-        } catch (err) {
-          if (attemptsLeft <= 1) throw err;
-          console.warn(`[Connector Retry] Fetch failed to ${targetUrl}, retrying in ${delay}ms...`);
-          await new Promise(r => setTimeout(r, delay));
-          return fetchWithRetry(targetUrl, attemptsLeft - 1, delay * 2);
+      const originalRejectUnauthorized = process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+      if (store.sslBypass) {
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+      }
+
+      try {
+        const authHeader = "Basic " + Buffer.from(`${rawConsumerKey}:${rawConsumerSecret}`).toString("base64");
+        
+        const fetchWithRetry = async (targetUrl: string, attemptsLeft: number = 3, delay: number = 1000): Promise<any> => {
+          try {
+            const res = await fetch(targetUrl, {
+              headers: {
+                "Authorization": authHeader,
+                "Content-Type": "application/json"
+              }
+            });
+            if (!res.ok) throw new Error(`HTTP Error Status: ${res.status}`);
+            return await res.json();
+          } catch (err) {
+            if (attemptsLeft <= 1) throw err;
+            console.warn(`[Connector Retry] Fetch failed to ${targetUrl}, retrying in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            return fetchWithRetry(targetUrl, attemptsLeft - 1, delay * 2);
+          }
+        };
+
+        const productsUrl = `${store.url}/wp-json/wc/v3/products`;
+        const categoriesUrl = `${store.url}/wp-json/wc/v3/products/categories`;
+
+        console.log(`[Sync Engine] Issuing WooCommerce Rest API requests to ${productsUrl}`);
+        const [rawProds, rawCats] = await Promise.all([
+          fetchWithRetry(productsUrl),
+          fetchWithRetry(categoriesUrl)
+        ]);
+
+        finalProducts = rawProds.map((p: any) => getFullyPopulatedProduct(p, storeId));
+        finalCategories = rawCats.map((c: any) => ({
+          id: String(c.id),
+          name: c.name,
+          slug: c.slug,
+          count: c.count || 0
+        }));
+      } catch (syncErr: any) {
+        throw syncErr;
+      } finally {
+        if (store.sslBypass) {
+          if (originalRejectUnauthorized !== undefined) {
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = originalRejectUnauthorized;
+          } else {
+            delete process.env.NODE_TLS_REJECT_UNAUTHORIZED;
+          }
         }
-      };
-
-      const productsUrl = `${store.url}/wp-json/wc/v3/products`;
-      const categoriesUrl = `${store.url}/wp-json/wc/v3/products/categories`;
-
-      console.log(`[Sync Engine] Issuing WooCommerce Rest API requests to ${productsUrl}`);
-      const [rawProds, rawCats] = await Promise.all([
-        fetchWithRetry(productsUrl),
-        fetchWithRetry(categoriesUrl)
-      ]);
-
-      finalProducts = rawProds.map((p: any) => getFullyPopulatedProduct(p, storeId));
-      finalCategories = rawCats.map((c: any) => ({
-        id: String(c.id),
-        name: c.name,
-        slug: c.slug,
-        count: c.count || 0
-      }));
+      }
     }
 
     const selectedFields = store.selectedFields;

@@ -111,7 +111,9 @@ export async function syncItemsToCollection(
         }
       } else {
         // Fallback for default name & slug fields if present or raw values
-        formattedFieldData[fieldId] = { type: "string", value: String(val) };
+        if (fieldId !== "slug" && fieldId !== "id") {
+          formattedFieldData[fieldId] = { type: "string", value: String(val) };
+        }
       }
     });
 
