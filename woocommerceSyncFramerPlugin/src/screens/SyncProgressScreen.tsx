@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { WooCommerceCreds, SyncPreferences, WooCommerceProduct, WooCommerceCategory } from "../types"
+import type { WooCommerceCreds, SyncPreferences, WooCommerceCategory } from "../types"
 import { WooCommerceService } from "../services/woocommerce"
 import { sanitizeAndCleanHtml } from "../utils/html-converter"
 import { framer, type ManagedCollection, type ManagedCollectionFieldInput } from "framer-plugin"
@@ -116,7 +116,8 @@ export function SyncProgressScreen({
                         const file = new File([blob], filename, { type: blob.type })
 
                         addLog(`Uploading image file natively to Framer assets: ${filename}`)
-                        const framerAssetUrl = await framer.uploadAsset(file)
+                        const imageAsset = await framer.uploadImage(file)
+                        const framerAssetUrl = imageAsset.url
 
                         // Store to cache
                         localImageCache[url] = framerAssetUrl
@@ -138,6 +139,7 @@ export function SyncProgressScreen({
                     if (isAborted.current) return
 
                     const p = wooProducts[i]
+                    if (!p) continue
                     setCurrentTask(`Processing product: ${p.name}`)
                     addLog(`Processing product [${i + 1}/${wooProducts.length}]: ${p.name}`)
 

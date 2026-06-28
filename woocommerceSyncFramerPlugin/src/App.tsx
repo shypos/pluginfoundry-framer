@@ -7,7 +7,7 @@ import { ConfigScreen } from "./screens/ConfigScreen"
 import { SyncProgressScreen } from "./screens/SyncProgressScreen"
 import { LicenseScreen } from "./screens/LicenseScreen"
 import { StorefrontComponents } from "./components/StorefrontComponents"
-import { WooCommerceCreds, SyncPreferences } from "./types"
+import type { WooCommerceCreds, SyncPreferences } from "./types"
 
 interface AppProps {
     collection: ManagedCollection
@@ -46,7 +46,7 @@ export function App({ collection }: AppProps) {
     const [fields, setFields] = useState<ManagedCollectionFieldInput[]>(wooProductFields)
     const [ignoredFieldIds, setIgnoredFieldIds] = useState<Set<string>>(new Set(["type", "status", "weight"]))
     const [selectedSlugField, setSelectedSlugField] = useState<ManagedCollectionFieldInput>(
-        wooProductFields.find(f => f.id === "slug") || wooProductFields[1]
+        (wooProductFields.find(f => f.id === "slug") || wooProductFields[1])!
     )
 
     // Adjust Framer UI Frame Size for each wizard step to match Native sizing perfectly

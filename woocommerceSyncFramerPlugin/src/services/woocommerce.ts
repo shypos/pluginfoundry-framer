@@ -1,4 +1,4 @@
-import { WooCommerceCreds, StoreMetadata, WooCommerceCategory, WooCommerceProduct } from "../types"
+import type { WooCommerceCreds, StoreMetadata, WooCommerceCategory, WooCommerceProduct } from "../types"
 
 // Normalization function to align with fields of WooCommerceProduct
 function normalizeProduct(p: any): WooCommerceProduct {

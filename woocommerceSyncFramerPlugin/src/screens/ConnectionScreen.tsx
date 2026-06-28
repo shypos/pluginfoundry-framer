@@ -1,7 +1,6 @@
 import { useState } from "react"
-import { WooCommerceCreds } from "../types"
+import type { WooCommerceCreds } from "../types"
 import { WooCommerceService } from "../services/woocommerce"
-import { framer } from "framer-plugin"
 
 interface ConnectionScreenProps {
     onConnect: (creds: WooCommerceCreds, storeName: string) => void

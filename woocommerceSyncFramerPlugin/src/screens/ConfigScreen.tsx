@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { SyncPreferences } from "../types"
+import type { SyncPreferences } from "../types"
 
 interface ConfigScreenProps {
     storeName: string
@@ -285,6 +285,27 @@ export function ConfigScreen({ storeName, storeUrl, onNext, onDisconnect }: Conf
                             </div>
                         </div>
 
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--framer-color-text-secondary)" }}>Default Status</label>
+                                <select
+                                    value={defaultProductStatus}
+                                    onChange={e => setDefaultProductStatus(e.target.value as any)}
+                                    style={{
+                                        padding: "6px",
+                                        fontSize: "11px",
+                                        backgroundColor: "var(--framer-color-bg-secondary)",
+                                        border: "1px solid var(--framer-color-bg-tertiary)",
+                                        borderRadius: "6px",
+                                        color: "var(--framer-color-text)"
+                                    }}
+                                >
+                                    <option value="publish">Published</option>
+                                    <option value="draft">Draft</option>
+                                </select>
+                            </div>
+                        </div>
+
                         {/* Extra Checkboxes */}
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
@@ -307,6 +328,18 @@ export function ConfigScreen({ storeName, storeUrl, onNext, onDisconnect }: Conf
                                 type="checkbox"
                                 checked={importTags}
                                 onChange={e => setImportTags(e.target.checked)}
+                            />
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                                <div style={{ fontSize: "12px", fontWeight: "500", color: "var(--framer-color-text)" }}>Import Attributes</div>
+                                <div style={{ fontSize: "10px", color: "var(--framer-color-text-tertiary)" }}>Sync product traits like size and color</div>
+                            </div>
+                            <input
+                                type="checkbox"
+                                checked={importAttributes}
+                                onChange={e => setImportAttributes(e.target.checked)}
                             />
                         </div>
 

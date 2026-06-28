@@ -22,6 +22,14 @@ export interface SyncPreferences {
     convertHtml: boolean
     importStock: boolean
     importVariants: boolean
+    importTags: boolean
+    importAttributes: boolean
+    importSeo: boolean
+    imageQuality: "standard" | "high" | "raw"
+    batchSize: number
+    defaultProductStatus: "publish" | "draft"
+    productsCollectionName: string
+    categoriesCollectionName: string
 }
 
 export interface SyncProgress {
