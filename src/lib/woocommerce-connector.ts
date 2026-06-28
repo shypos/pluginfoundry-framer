@@ -60,6 +60,7 @@ export async function validateWooCommerceCredentials(
   const isMock =
     sanitizedUrl.includes(".domain") ||
     sanitizedUrl.includes("mock") ||
+    sanitizedUrl.includes(".local") ||
     sanitizedUrl === "https://artisanwood.store";
 
   if (isMock) {

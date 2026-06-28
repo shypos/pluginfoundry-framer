@@ -1,6 +1,6 @@
 {
-  "name": "PluginFoundry Dashboard",
-  "description": "A production-grade, multi-product SaaS dashboard hosting Forms, WooCommerce Sync, and Export modules.",
+  "name": "WooCommerce Sync for Framer",
+  "description": "A native, zero-latency Framer CMS synchronizer for importing WooCommerce catalogs directly into your project's collections with image downloading and rich text mapping.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
